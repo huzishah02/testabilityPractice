@@ -2,7 +2,7 @@ package org.example;
 
 import org.junit.jupiter.api.Test;
 import java.util.List;
-
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 /**
@@ -51,5 +51,33 @@ public class SAP_BasedInvoiceSenderTest {
         sender.sendLowValuedInvoices();
 
         verify(sapMock, never()).send(any(Invoice.class));
+    }
+
+    @Test
+    void testThrowExceptionWhenBadInvoice() {
+        // Arrange
+        FilterInvoice filterMock = mock(FilterInvoice.class);
+        SAP sapMock = mock(SAP.class);
+
+        Invoice badInvoice = new Invoice("BadCustomer", 45);
+        Invoice goodInvoice = new Invoice("GoodCustomer", 55);
+
+        when(filterMock.lowValueInvoices()).thenReturn(List.of(badInvoice, goodInvoice));
+
+        // Stub sap.send() to throw an exception for the bad invoice
+        doThrow(new FailToSendSAPInvoiceException("Simulated SAP failure"))
+                .when(sapMock).send(badInvoice);
+
+        SAP_BasedInvoiceSender sender = new SAP_BasedInvoiceSender(filterMock, sapMock);
+
+        // Act
+        List<Invoice> failed = sender.sendLowValuedInvoices();
+
+        // Assert — check that the failed invoice was captured
+        assertEquals(1, failed.size());
+        assertTrue(failed.contains(badInvoice));
+
+        // Verify that sap.send() was still called for both invoices
+        verify(sapMock, times(2)).send(any(Invoice.class));
     }
 }
