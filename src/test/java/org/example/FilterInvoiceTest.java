@@ -43,6 +43,10 @@ class FilterInvoiceTest {
 
     @Test
     void filterInvoiceTest() {
+        // This is an integration test that uses the real database connection.
+        // It verifies that FilterInvoice.lowValueInvoices() correctly filters invoices
+        // below 100 using actual DB operations (no mocks/stubs).
+
         // Call the real method under test
         List<Invoice> lowValued = filter.lowValueInvoices();
 
@@ -63,31 +67,32 @@ class FilterInvoiceTest {
 
     @Test
     void filterInvoiceStubbedTest() {
-        // Create a mock DAO ---
+        // This is a **unit test** that isolates FilterInvoice by stubbing its dependency (QueryInvoicesDAO).
+        // It avoids using a real database to make the test faster and more reliable.
+        // Instead, Mockito provides a mock DAO whose .all() method returns fake data.
+
+        // Create a mock DAO
         QueryInvoicesDAO mockDao = Mockito.mock(QueryInvoicesDAO.class);
 
-        //Create a dummy database (won’t actually be used) ---
+        //Create a dummy database (won’t actually be used)
         Database fakeDb = Mockito.mock(Database.class);
 
-        // Prepare fake invoice data ---
+        // Prepare fake invoice data
         List<Invoice> fakeInvoices = List.of(
                 new Invoice("X", 50),   // low value
                 new Invoice("Y", 120),  // high value
                 new Invoice("Z", 75)    // low value
         );
 
-        // Stub the DAO's .all() method to return the fake data ---
+        // Stub the DAO's .all() method to return the fake data
         Mockito.when(mockDao.all()).thenReturn(fakeInvoices);
 
-        // Create a FilterInvoice with stubbed DAO ---
-        // To inject it, we temporarily create a subclass (or you could refactor FilterInvoice to accept DAO directly)
+        // Create a FilterInvoice with stubbed DAO
         FilterInvoice filter = new FilterInvoice(fakeDb);
-        filter.dao = mockDao; // direct injection for testability
+        filter.dao = mockDao;
 
-        // Call the method under test ---
         List<Invoice> result = filter.lowValueInvoices();
 
-        // Verify filtering logic (no DB involved) ---
         assertThat(result)
                 .extracting(Invoice::getCustomer)
                 .containsExactlyInAnyOrder("X", "Z");
@@ -95,7 +100,7 @@ class FilterInvoiceTest {
         assertThat(result)
                 .allMatch(inv -> inv.getValue() < 100);
 
-        // Verify that DAO’s all() method was called exactly once ---
+        // Verify that DAO’s all() method was called exactly once
         Mockito.verify(mockDao, Mockito.times(1)).all();
     }
 }
